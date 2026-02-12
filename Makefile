@@ -2,10 +2,10 @@ SHELL := /bin/bash
 
 .DEFAULT_GOAL := help
 
-APP_NAME := claudeme
+APP_NAME := Open in Claude Code
 VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
 
-.PHONY: help setup check test release clean
+.PHONY: help setup build install uninstall release clean
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*## "}; /^[a-zA-Z0-9_.-]+:.*## / {printf "  %-12s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -14,41 +14,38 @@ setup: ## First-time setup for contributors
 	@echo "Setting up development environment..."
 	@git config core.hooksPath .githooks
 	@chmod +x .githooks/* 2>/dev/null || true
-	@chmod +x bin/claudeme
 	@echo "✓ Setup complete"
 
-check: ## Run checks (shellcheck)
-	@echo "Checking shell script..."
-	@bash -n bin/claudeme
-	@command -v shellcheck >/dev/null 2>&1 && shellcheck bin/claudeme || echo "shellcheck not installed, skipping"
-	@echo "✓ All checks passed"
+build: ## Build the macOS app
+	@./app/build.sh
 
-test: ## Test the claudeme script
-	@echo "Testing claudeme..."
-	@./bin/claudeme --help >/dev/null
-	@echo "✓ Tests passed"
+install: build ## Build and install to /Applications
+	@echo "Installing to /Applications..."
+	@cp -R 'app/build/$(APP_NAME).app' /Applications/
+	@echo "✓ Installed to /Applications"
+	@echo ""
+	@echo "To add to Finder toolbar:"
+	@echo "  Hold ⌘ and drag the app from /Applications to the toolbar"
 
-install-local: ## Install locally (for testing)
-	@echo "Installing locally..."
-	@mkdir -p /usr/local/bin
-	@cp bin/claudeme /usr/local/bin/claudeme
-	@chmod +x /usr/local/bin/claudeme
-	@echo "✓ Installed to /usr/local/bin"
-	@echo "Run: claudeme setup"
-
-uninstall-local: ## Uninstall local installation
-	@rm -f /usr/local/bin/claudeme
+uninstall: ## Remove from /Applications
+	@rm -rf '/Applications/$(APP_NAME).app'
 	@echo "✓ Uninstalled"
 
-release: ## Create and publish a release (requires TAG=v1.0.0)
+release: build ## Create and publish a release (requires TAG=v1.0.0)
 	@test -n "$(TAG)" || { echo "Usage: make release TAG=v1.0.0"; exit 1; }
 	@command -v gh >/dev/null 2>&1 || { echo "Install: brew install gh"; exit 1; }
 	@echo "Creating release $(TAG)..."
+	@# Create zip of the app
+	@cd app/build && zip -r "../../Claudeme-$${TAG#v}.zip" "$(APP_NAME).app"
+	@# Create tag and push
 	@git tag -a $(TAG) -m "Release $(TAG)" 2>/dev/null || true
 	@git push origin $(TAG)
+	@# Create GitHub release with the zip
+	@gh release create $(TAG) "Claudeme-$${TAG#v}.zip" --title "$(TAG)" --generate-notes
 	@echo ""
-	@echo "Release $(TAG) tag pushed. GitHub Action will create the release."
+	@echo "✓ Release $(TAG) published. Homebrew tap will be updated automatically."
 
 clean: ## Clean build artifacts
-	@rm -f *.tar.gz checksums.txt
+	@rm -rf app/build
+	@rm -f *.zip checksums.txt
 	@echo "✓ Cleaned"

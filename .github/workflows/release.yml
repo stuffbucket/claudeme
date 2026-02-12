@@ -1,50 +1,11 @@
-name: Release
+name: Update Homebrew Tap
 
 on:
-  push:
-    tags:
-      - 'v*'
-
-permissions:
-  contents: write
+  release:
+    types: [published]
 
 jobs:
-  release:
-    runs-on: macos-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Get version
-        id: version
-        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
-
-      - name: Create release archive
-        run: |
-          VERSION=${{ steps.version.outputs.version }}
-          ARCHIVE="claudeme_${VERSION}_darwin_all.tar.gz"
-          
-          # Create tarball with proper structure
-          tar -czvf "$ARCHIVE" \
-            --transform 's,^,claudeme-'"$VERSION"'/,' \
-            bin/claudeme \
-            README.md \
-            LICENSE
-          
-          # Generate checksum
-          shasum -a 256 "$ARCHIVE" > checksums.txt
-          
-          echo "ARCHIVE=$ARCHIVE" >> $GITHUB_ENV
-
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            ${{ env.ARCHIVE }}
-            checksums.txt
-          generate_release_notes: true
-
   update-homebrew:
-    needs: release
     runs-on: ubuntu-latest
     steps:
       - name: Get version
@@ -54,8 +15,8 @@ jobs:
       - name: Download release archive
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          curl -sLO "https://github.com/stuffbucket/claudeme/releases/download/v${VERSION}/claudeme_${VERSION}_darwin_all.tar.gz"
-          SHA256=$(shasum -a 256 "claudeme_${VERSION}_darwin_all.tar.gz" | cut -d' ' -f1)
+          curl -sLO "https://github.com/stuffbucket/claudeme/releases/download/v${VERSION}/Claudeme-${VERSION}.zip"
+          SHA256=$(shasum -a 256 "Claudeme-${VERSION}.zip" | cut -d' ' -f1)
           echo "SHA256=$SHA256" >> $GITHUB_ENV
 
       - name: Checkout homebrew-tap
@@ -65,53 +26,45 @@ jobs:
           token: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           path: homebrew-tap
 
-      - name: Update formula
+      - name: Create Casks directory if needed
+        run: mkdir -p homebrew-tap/Casks
+
+      - name: Update cask
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SHA256: ${{ env.SHA256 }}
         run: |
-          VERSION=${{ steps.version.outputs.version }}
-          cat > homebrew-tap/Formula/claudeme.rb << 'EOF'
-          # typed: false
-          # frozen_string_literal: true
-
-          class Claudeme < Formula
-            desc "Claude Code launcher and setup tool for macOS"
-            homepage "https://github.com/stuffbucket/claudeme"
-            url "https://github.com/stuffbucket/claudeme/releases/download/v${VERSION}/claudeme_${VERSION}_darwin_all.tar.gz"
+          cat > homebrew-tap/Casks/claudeme.rb << CASKEOF
+          cask "claudeme" do
+            version "${VERSION}"
             sha256 "${SHA256}"
-            license "MIT"
 
-            depends_on :macos
+            url "https://github.com/stuffbucket/claudeme/releases/download/v#{version}/Claudeme-#{version}.zip"
+            name "Claudeme"
+            name "Open in Claude Code"
+            desc "Finder toolbar app to launch Claude Code in the current directory"
+            homepage "https://github.com/stuffbucket/claudeme"
 
-            def install
-              bin.install "bin/claudeme"
-            end
+            app "Open in Claude Code.app"
 
-            def caveats
-              <<~EOS
-                To complete setup, run:
-                  claudeme setup
+            caveats <<~EOS
+              To use Claudeme:
+              1. Hold ⌘ and drag the app from /Applications to Finder's toolbar
+              2. Navigate to any project folder
+              3. Click the toolbar icon to open Claude Code there
 
-                This creates ~/Claude folder for your Claude Code projects.
-
-                Requires Claude Code CLI:
-                  npm install -g @anthropic-ai/claude-code
-              EOS
-            end
-
-            test do
-              assert_match "claudeme", shell_output("#{bin}/claudeme --help")
-            end
+              Double-click the app to access Settings.
+            EOS
           end
-          EOF
-          
-          # Replace placeholders with actual values
-          sed -i "s/\${VERSION}/$VERSION/g" homebrew-tap/Formula/claudeme.rb
-          sed -i "s/\${SHA256}/${{ env.SHA256 }}/g" homebrew-tap/Formula/claudeme.rb
+          CASKEOF
+          # Strip leading indentation
+          sed -i 's/^          //' homebrew-tap/Casks/claudeme.rb
 
       - name: Commit and push
         working-directory: homebrew-tap
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add Formula/claudeme.rb
+          git add Casks/claudeme.rb
           git commit -m "Update claudeme to v${{ steps.version.outputs.version }}"
           git push

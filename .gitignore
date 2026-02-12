@@ -1,5 +1,7 @@
 .DS_Store
 *.swp
 *.swo
-*~app/build/
-openinterminal-src/
+*~
+app/build/
+*.zip
+checksums.txt

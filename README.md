@@ -1,85 +1,70 @@
-# claudeme
+# Claudeme
 
-Simple Claude Code launcher for macOS. Creates a dedicated `~/Claude` folder for your projects and provides easy CLI access.
-
-## What it does
-
-- Creates `~/Claude` folder for your Claude Code projects
-- Tags it orange in Finder for easy identification
-- Provides CLI to launch Claude Code safely in project folders
-- Prevents accidentally trusting dangerous directories like `~/` or `/`
+**Open in Claude Code** — a native macOS Finder toolbar app that launches Claude Code in the current directory.
 
 ## Installation
 
-### Via Homebrew (recommended)
+### Via Homebrew
 
 ```bash
-brew tap stuffbucket/tap
-brew install claudeme
-claudeme setup
+brew install stuffbucket/tap/claudeme
 ```
 
-### Manual installation
+### Manual
 
 ```bash
 git clone https://github.com/stuffbucket/claudeme.git
 cd claudeme
-chmod +x bin/claudeme
-sudo cp bin/claudeme /usr/local/bin/
-claudeme setup
+make install
 ```
 
-## Usage
-
-```bash
-# One-time setup (creates ~/Claude folder)
-claudeme setup
-
-# Launch Claude Code in ~/Claude
-claudeme launch
-
-# Launch in a specific project
-claudeme ~/Claude/my-project
-
-# Launch in current directory
-claudeme here
-```
-
-## One-click Finder integration
-
-The project includes **Open in Claude Code**, a native macOS app for your Finder toolbar:
-
-### Build and install
-
-```bash
-cd app && ./build.sh
-cp -R 'build/Open in Claude Code.app' /Applications/
-```
-
-### Add to Finder toolbar
+## Setup
 
 1. Open `/Applications` in Finder
-2. Hold **Cmd** and drag "Open in Claude Code" to the Finder toolbar
-3. Click it while viewing any folder to open Claude Code there
+2. Hold **⌘** and drag "Open in Claude Code" to the Finder toolbar
+3. Navigate to any project folder
+4. Click the toolbar icon to open Claude Code there
 
-The app automatically:
-- Gets the selected folder (or current folder if nothing selected)
-- Opens Terminal
-- Runs `claude` in that directory
+Double-click the app (from /Applications or Downloads) to access **Settings**.
 
-## Safety features
+## Features
 
-Claudeme refuses to launch Claude Code in dangerous directories:
+- **One-click Claude Code** — Click the toolbar icon in any folder
+- **Multiple terminal support** — Terminal, iTerm, Warp, Kitty, Alacritty, Ghostty
+- **Terminal profiles** — Choose your preferred Terminal.app profile (Clear Dark, Clear Light, etc.)
+- **Custom command** — Configure `claude`, `agency claude`, or any custom command
+- **Default directory** — Creates and configures a default project folder (e.g., `~/Claude`)
+- **Trusted directories manager** — View and remove directories from Claude's trust list
+- **Auto-install Claude** — Prompts to install Claude Code CLI if not found
+
+## Configuration
+
+Settings are stored in `~/.config/openinclaudecode/settings.json`:
+
+```json
+{
+  "terminal": "Terminal",
+  "terminalProfile": "Clear Dark",
+  "claudeCommand": "claude",
+  "defaultDirectory": "~/Claude"
+}
+```
+
+Access settings by double-clicking the app from /Applications.
+
+## Safety
+
+The app refuses to launch Claude Code in protected directories:
 - Home folder (`~/`)
 - Root (`/`)
 - System directories (`/System`, `/Library`, `/Applications`, etc.)
 
-This prevents accidentally giving Claude Code access to your entire system.
+This prevents accidentally giving Claude Code full system access.
 
 ## Requirements
 
-- macOS 10.15 (Catalina) or later
-- Claude Code CLI: `npm install -g @anthropic-ai/claude-code`
+- macOS 11.0 (Big Sur) or later
+- [Claude Code CLI](https://claude.ai/install.sh)
 
 ## License
 
