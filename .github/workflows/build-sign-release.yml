@@ -17,6 +17,13 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
+      - name: Unlock keychain
+        run: |
+          security unlock-keychain -p "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/build.keychain-db
+          security set-key-partition-list -S apple-tool:,apple: \
+            -s -k "${{ secrets.KEYCHAIN_PASSWORD }}" ~/Library/Keychains/build.keychain-db
+          security list-keychains -d user -s ~/Library/Keychains/build.keychain-db
+
       - name: Build universal binary + DMG
         run: |
           UNIVERSAL=1 \
