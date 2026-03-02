@@ -15,8 +15,8 @@ jobs:
       - name: Download release archive
         run: |
           VERSION=${{ steps.version.outputs.version }}
-          curl -sLO "https://github.com/stuffbucket/claudeme/releases/download/v${VERSION}/Claudeme-${VERSION}.zip"
-          SHA256=$(shasum -a 256 "Claudeme-${VERSION}.zip" | cut -d' ' -f1)
+          curl -sLO "https://github.com/stuffbucket/claudeme/releases/download/v${VERSION}/Claudeme-${VERSION}.dmg"
+          SHA256=$(shasum -a 256 "Claudeme-${VERSION}.dmg" | cut -d' ' -f1)
           echo "SHA256=$SHA256" >> $GITHUB_ENV
 
       - name: Checkout homebrew-tap
@@ -39,7 +39,7 @@ jobs:
             version "${VERSION}"
             sha256 "${SHA256}"
 
-            url "https://github.com/stuffbucket/claudeme/releases/download/v#{version}/Claudeme-#{version}.zip"
+            url "https://github.com/stuffbucket/claudeme/releases/download/v#{version}/Claudeme-#{version}.dmg"
             name "Claudeme"
             name "Open in Claude Code"
             desc "Finder toolbar app to launch Claude Code in the current directory"

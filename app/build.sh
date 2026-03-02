@@ -7,6 +7,12 @@ APP_NAME="Open in Claude Code"
 BUILD_DIR="$SCRIPT_DIR/build"
 APP_BUNDLE="$BUILD_DIR/$APP_NAME.app"
 
+# Options
+SIGN_IDENTITY="${SIGN_IDENTITY:--}"  # ad-hoc by default
+UNIVERSAL="${UNIVERSAL:-0}"
+CREATE_DMG="${CREATE_DMG:-0}"
+DMG_NAME="${DMG_NAME:-Claudeme}"
+
 echo "Building $APP_NAME..."
 
 # Clean
@@ -17,14 +23,41 @@ mkdir -p "$BUILD_DIR"
 mkdir -p "$APP_BUNDLE/Contents/MacOS"
 mkdir -p "$APP_BUNDLE/Contents/Resources"
 
-# Compile Swift
-swiftc \
-    -o "$APP_BUNDLE/Contents/MacOS/OpenInClaudeCode" \
-    -target arm64-apple-macosx12.0 \
-    -sdk $(xcrun --show-sdk-path) \
-    -framework Cocoa \
-    -framework ScriptingBridge \
-    "$SCRIPT_DIR/main.swift"
+SDK_PATH=$(xcrun --show-sdk-path)
+
+if [ "$UNIVERSAL" = "1" ]; then
+    echo "  Building universal binary (arm64 + x86_64)..."
+    swiftc \
+        -o "$BUILD_DIR/OpenInClaudeCode-arm64" \
+        -target arm64-apple-macosx12.0 \
+        -sdk "$SDK_PATH" \
+        -framework Cocoa \
+        -framework ScriptingBridge \
+        "$SCRIPT_DIR/main.swift"
+
+    swiftc \
+        -o "$BUILD_DIR/OpenInClaudeCode-x86_64" \
+        -target x86_64-apple-macosx12.0 \
+        -sdk "$SDK_PATH" \
+        -framework Cocoa \
+        -framework ScriptingBridge \
+        "$SCRIPT_DIR/main.swift"
+
+    lipo -create \
+        "$BUILD_DIR/OpenInClaudeCode-arm64" \
+        "$BUILD_DIR/OpenInClaudeCode-x86_64" \
+        -output "$APP_BUNDLE/Contents/MacOS/OpenInClaudeCode"
+
+    rm "$BUILD_DIR/OpenInClaudeCode-arm64" "$BUILD_DIR/OpenInClaudeCode-x86_64"
+else
+    swiftc \
+        -o "$APP_BUNDLE/Contents/MacOS/OpenInClaudeCode" \
+        -target arm64-apple-macosx12.0 \
+        -sdk "$SDK_PATH" \
+        -framework Cocoa \
+        -framework ScriptingBridge \
+        "$SCRIPT_DIR/main.swift"
+fi
 
 # Copy Info.plist
 cp "$SCRIPT_DIR/Info.plist" "$APP_BUNDLE/Contents/"
@@ -37,10 +70,47 @@ fi
 # Create PkgInfo
 echo -n "APPL????" > "$APP_BUNDLE/Contents/PkgInfo"
 
-# Ad-hoc sign
-codesign --force --deep --sign - "$APP_BUNDLE"
+# Code sign
+ENTITLEMENTS="$SCRIPT_DIR/app.entitlements"
+if [ "$SIGN_IDENTITY" = "-" ]; then
+    echo "  Ad-hoc signing..."
+    codesign --force --deep --sign - --entitlements "$ENTITLEMENTS" "$APP_BUNDLE"
+else
+    echo "  Signing with identity: $SIGN_IDENTITY"
+    codesign --force --deep --options runtime \
+        --entitlements "$ENTITLEMENTS" \
+        --sign "$SIGN_IDENTITY" \
+        "$APP_BUNDLE"
+fi
 
 echo "✓ Built: $APP_BUNDLE"
+
+# Create DMG
+if [ "$CREATE_DMG" = "1" ]; then
+    DMG_PATH="$BUILD_DIR/$DMG_NAME.dmg"
+    DMG_STAGING="$BUILD_DIR/dmg-staging"
+    echo "  Creating DMG..."
+
+    rm -rf "$DMG_STAGING"
+    mkdir -p "$DMG_STAGING"
+    cp -R "$APP_BUNDLE" "$DMG_STAGING/"
+    ln -s /Applications "$DMG_STAGING/Applications"
+
+    hdiutil create -volname "$APP_NAME" \
+        -srcfolder "$DMG_STAGING" \
+        -ov -format UDZO \
+        "$DMG_PATH"
+
+    rm -rf "$DMG_STAGING"
+
+    # Sign the DMG itself if using a real identity
+    if [ "$SIGN_IDENTITY" != "-" ]; then
+        codesign --force --sign "$SIGN_IDENTITY" "$DMG_PATH"
+    fi
+
+    echo "✓ DMG: $DMG_PATH"
+fi
+
 echo ""
 echo "To install:"
 echo "  cp -R '$APP_BUNDLE' /Applications/"

@@ -1,0 +1,51 @@
+name: Build, Sign & Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build-sign-release:
+    runs-on: self-hosted
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Extract version
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
+
+      - name: Build universal binary + DMG
+        run: |
+          UNIVERSAL=1 \
+          SIGN_IDENTITY="${{ secrets.DEVELOPER_ID_APPLICATION }}" \
+          CREATE_DMG=1 \
+          DMG_NAME="Claudeme-${{ steps.version.outputs.version }}" \
+          ./app/build.sh
+
+      - name: Verify signature
+        run: codesign --verify --verbose=2 "app/build/Open in Claude Code.app"
+
+      - name: Notarize DMG
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          xcrun notarytool submit \
+            "app/build/Claudeme-${{ steps.version.outputs.version }}.dmg" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait
+
+      - name: Staple notarization ticket
+        run: xcrun stapler staple "app/build/Claudeme-${{ steps.version.outputs.version }}.dmg"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: app/build/Claudeme-${{ steps.version.outputs.version }}.dmg
+          generate_release_notes: true

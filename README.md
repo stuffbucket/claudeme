@@ -10,7 +10,11 @@
 brew install stuffbucket/tap/claudeme
 ```
 
-### Manual
+### Download
+
+Grab the latest `.dmg` from [Releases](https://github.com/stuffbucket/claudeme/releases), open it, and drag to `/Applications`.
+
+### Build from source
 
 ```bash
 git clone https://github.com/stuffbucket/claudeme.git
