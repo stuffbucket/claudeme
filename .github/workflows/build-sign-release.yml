@@ -26,7 +26,6 @@ jobs:
 
       - name: Build universal binary + DMG
         run: |
-          UNIVERSAL=1 \
           SIGN_IDENTITY="${{ secrets.DEVELOPER_ID_APPLICATION }}" \
           CREATE_DMG=1 \
           DMG_NAME="Claudeme-${{ steps.version.outputs.version }}" \
@@ -42,17 +41,17 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           xcrun notarytool submit \
-            "app/build/Claudeme-${{ steps.version.outputs.version }}.dmg" \
+            "dist/Claudeme-${{ steps.version.outputs.version }}.dmg" \
             --apple-id "$APPLE_ID" \
             --password "$APPLE_PASSWORD" \
             --team-id "$APPLE_TEAM_ID" \
             --wait
 
       - name: Staple notarization ticket
-        run: xcrun stapler staple "app/build/Claudeme-${{ steps.version.outputs.version }}.dmg"
+        run: xcrun stapler staple "dist/Claudeme-${{ steps.version.outputs.version }}.dmg"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/Claudeme-${{ steps.version.outputs.version }}.dmg
+          files: dist/Claudeme-${{ steps.version.outputs.version }}.dmg
           generate_release_notes: true

@@ -3,5 +3,5 @@
 *.swo
 *~
 app/build/
-*.zip
+dist/
 checksums.txt

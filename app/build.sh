@@ -87,7 +87,9 @@ echo "✓ Built: $APP_BUNDLE"
 
 # Create DMG
 if [ "$CREATE_DMG" = "1" ]; then
-    DMG_PATH="$BUILD_DIR/$DMG_NAME.dmg"
+    DIST_DIR="${DIST_DIR:-$SCRIPT_DIR/../dist}"
+    mkdir -p "$DIST_DIR"
+    DMG_PATH="$DIST_DIR/$DMG_NAME.dmg"
     DMG_STAGING="$BUILD_DIR/dmg-staging"
     echo "  Creating DMG..."
 
